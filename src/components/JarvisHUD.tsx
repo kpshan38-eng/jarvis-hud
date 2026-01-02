@@ -5,6 +5,12 @@ import InfoPanel from "./InfoPanel";
 import StatLine from "./StatLine";
 import ProgressBar from "./ProgressBar";
 import CommandConsole from "./CommandConsole";
+import WorldMap from "./WorldMap";
+import StockTicker from "./StockTicker";
+import CalendarWidget from "./CalendarWidget";
+import DiagnosticsModal from "./DiagnosticsModal";
+
+type DiagnosticsMode = "combat" | "stealth" | "power-save" | "diagnostics";
 
 const JarvisHUD = () => {
   const [systemStats, setSystemStats] = useState({
@@ -15,6 +21,8 @@ const JarvisHUD = () => {
   });
 
   const [time, setTime] = useState(new Date());
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnosticsMode, setDiagnosticsMode] = useState<DiagnosticsMode>("diagnostics");
 
   // Simulate real-time stats
   useEffect(() => {
@@ -34,6 +42,11 @@ const JarvisHUD = () => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleArcReactorClick = () => {
+    setDiagnosticsMode("diagnostics");
+    setShowDiagnostics(true);
+  };
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 overflow-hidden relative">
@@ -108,11 +121,13 @@ const JarvisHUD = () => {
               <span className="text-xs text-muted-foreground">Latency: 12ms</span>
             </div>
           </InfoPanel>
+
+          <CalendarWidget delay={600} />
         </div>
 
         {/* Center - Arc Reactor */}
         <div className="flex flex-col items-center justify-center py-8 lg:py-0">
-          <ArcReactor />
+          <ArcReactor onClick={handleArcReactorClick} />
           
           {/* Status indicators below reactor */}
           <div className="flex gap-6 mt-12">
@@ -128,6 +143,28 @@ const JarvisHUD = () => {
               <Activity className="w-4 h-4 text-green-500" />
               <span className="text-xs font-mono text-green-500/80">STABLE</span>
             </div>
+          </div>
+
+          {/* Mode buttons */}
+          <div className="flex gap-2 mt-6">
+            {(["combat", "stealth", "power-save"] as DiagnosticsMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => {
+                  setDiagnosticsMode(mode);
+                  setShowDiagnostics(true);
+                }}
+                className={`px-3 py-1 text-[10px] font-mono uppercase border rounded transition-all hover:scale-105 ${
+                  mode === "combat" 
+                    ? "border-red-500/50 text-red-500/80 hover:bg-red-500/10"
+                    : mode === "stealth"
+                    ? "border-purple-500/50 text-purple-500/80 hover:bg-purple-500/10"
+                    : "border-green-500/50 text-green-500/80 hover:bg-green-500/10"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -158,25 +195,31 @@ const JarvisHUD = () => {
               <Brain className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">Neural Network</span>
             </div>
-            <StatLine label="Model" value="JARVIS-7B" highlight />
+            <StatLine label="Model" value="Gemini Flash" highlight />
             <StatLine label="Status" value="ACTIVE" />
             <ProgressBar value={78} label="Neural Load" />
             <div className="pt-2 space-y-1.5">
-              <StatLine label="Responses" value="1,247" />
-              <StatLine label="Tokens" value="842K" />
-              <StatLine label="Accuracy" value="99.7%" highlight />
+              <StatLine label="Provider" value="Lovable AI" />
+              <StatLine label="Streaming" value="Enabled" highlight />
             </div>
             <div className="flex items-center gap-2 mt-3">
               <HardDrive className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Memory: 32GB</span>
+              <span className="text-xs text-muted-foreground">Memory: Active</span>
             </div>
           </InfoPanel>
+
+          <StockTicker delay={700} />
         </div>
+      </div>
+
+      {/* World Map - Full width */}
+      <div className="relative z-10 mt-6 md:mt-8">
+        <WorldMap delay={800} />
       </div>
 
       {/* Command Console */}
       <div className="relative z-10 mt-6 md:mt-8 max-w-4xl mx-auto">
-        <CommandConsole delay={700} />
+        <CommandConsole delay={900} />
       </div>
 
       {/* Footer */}
@@ -185,6 +228,13 @@ const JarvisHUD = () => {
           STARK INDUSTRIES © {new Date().getFullYear()} | ALL SYSTEMS OPERATIONAL
         </p>
       </footer>
+
+      {/* Diagnostics Modal */}
+      <DiagnosticsModal 
+        isOpen={showDiagnostics} 
+        onClose={() => setShowDiagnostics(false)}
+        mode={diagnosticsMode}
+      />
     </div>
   );
 };
