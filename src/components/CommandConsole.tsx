@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Mic, MicOff, Volume2, VolumeX, Trash2 } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Trash2, LogIn, LogOut } from "lucide-react";
 import { useJarvisAI } from "@/hooks/useJarvisAI";
 import { useVoice } from "@/hooks/useVoice";
+import { useLocalCommands } from "@/hooks/useLocalCommands";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface CommandConsoleProps {
   delay?: number;
@@ -16,6 +19,9 @@ interface DisplayMessage {
 const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
   const { messages: aiMessages, isLoading, sendMessage, clearHistory } = useJarvisAI();
   const { isListening, isSpeaking, transcript, startListening, stopListening, speak, stopSpeaking, isSupported } = useVoice();
+  const { executeCommand } = useLocalCommands();
+  const { user, isAuthenticated, signOut } = useAuth();
+  const navigate = useNavigate();
   
   const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([
     { type: 'system', content: 'J.A.R.V.I.S. ONLINE - SYSTEMS OPERATIONAL', timestamp: new Date() },
@@ -98,9 +104,26 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
     const command = input.trim();
     setInput('');
     
-    // Add user message immediately for display
+    // Try local command first
+    const localResult = executeCommand(command);
+    
+    if (localResult.handled) {
+      // Add user message and local response
+      setDisplayMessages(prev => [
+        ...prev,
+        { type: 'user', content: command, timestamp: new Date() },
+        { type: 'jarvis', content: localResult.response, timestamp: new Date() },
+      ]);
+      
+      if (autoSpeak) {
+        speak(localResult.response);
+      }
+      return;
+    }
+    
+    // Otherwise, send to AI
     setDisplayMessages(prev => [...prev, { type: 'user', content: command, timestamp: new Date() }]);
-    lastProcessedIndex.current++; // Skip the user message from AI messages
+    lastProcessedIndex.current++;
     
     await sendMessage(command);
   };
@@ -122,6 +145,18 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
     ]);
   };
 
+  const handleAuthClick = async () => {
+    if (isAuthenticated) {
+      await signOut();
+      setDisplayMessages(prev => [
+        ...prev,
+        { type: 'system', content: 'USER SIGNED OUT', timestamp: new Date() },
+      ]);
+    } else {
+      navigate('/auth');
+    }
+  };
+
   return (
     <div 
       className={`jarvis-panel flex flex-col h-72 transition-all duration-700 ${
@@ -134,7 +169,19 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
         <h3 className="font-orbitron text-xs tracking-wider text-primary uppercase jarvis-glow">
           Command Console
         </h3>
+        {isAuthenticated && user && (
+          <span className="text-[10px] text-muted-foreground ml-2">
+            [{user.email?.split('@')[0]}]
+          </span>
+        )}
         <div className="ml-auto flex gap-2 items-center">
+          <button
+            onClick={handleAuthClick}
+            className={`p-1 rounded transition-colors ${isAuthenticated ? 'text-green-500' : 'text-muted-foreground hover:text-primary'}`}
+            title={isAuthenticated ? "Sign out" : "Sign in for persistent memory"}
+          >
+            {isAuthenticated ? <LogOut className="w-3 h-3" /> : <LogIn className="w-3 h-3" />}
+          </button>
           {isSupported && (
             <>
               <button
