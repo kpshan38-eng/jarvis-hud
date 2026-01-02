@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 
-const ArcReactor = () => {
+interface ArcReactorProps {
+  onClick?: () => void;
+}
+
+const ArcReactor = ({ onClick }: ArcReactorProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 300);
@@ -10,12 +15,22 @@ const ArcReactor = () => {
 
   return (
     <div 
-      className={`relative w-64 h-64 md:w-80 md:h-80 transition-all duration-1000 ${
+      className={`relative w-64 h-64 md:w-80 md:h-80 transition-all duration-1000 cursor-pointer ${
         isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-      }`}
+      } ${isHovered ? 'scale-105' : ''}`}
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Click hint */}
+      {isHovered && (
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] text-primary/60 whitespace-nowrap animate-fade-in">
+          Click for diagnostics
+        </div>
+      )}
+
       {/* Outer glow */}
-      <div className="absolute inset-0 rounded-full bg-primary/20 blur-3xl animate-pulse-ring" />
+      <div className={`absolute inset-0 rounded-full bg-primary/20 blur-3xl animate-pulse-ring transition-all duration-300 ${isHovered ? 'bg-primary/30' : ''}`} />
       
       {/* Outermost ring */}
       <div className="absolute inset-2 rounded-full border-2 border-primary/40 animate-spin-slow">
@@ -66,7 +81,7 @@ const ArcReactor = () => {
 
       {/* Inner triangle core */}
       <div className="absolute inset-20 flex items-center justify-center">
-        <div className="relative w-full h-full animate-pulse-glow">
+        <div className={`relative w-full h-full animate-pulse-glow transition-all duration-300 ${isHovered ? 'scale-110' : ''}`}>
           {/* Triangle */}
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
             <defs>
