@@ -22,7 +22,7 @@ const suits: SuitTheme[] = [
     mark: "III",
     description: "The iconic red and gold. First fully combat-ready suit.",
     colors: {
-      primary: "190 100% 50%", // Cyan
+      primary: "190 100% 50%",
       secondary: "200 100% 40%",
       accent: "190 100% 45%",
       glow: "0 212 255",
@@ -35,7 +35,7 @@ const suits: SuitTheme[] = [
     mark: "VI",
     description: "Triangular arc reactor. Enhanced power output.",
     colors: {
-      primary: "210 100% 60%", // Blue
+      primary: "210 100% 60%",
       secondary: "220 100% 50%",
       accent: "200 100% 55%",
       glow: "50 150 255",
@@ -48,7 +48,7 @@ const suits: SuitTheme[] = [
     mark: "XLII",
     description: "Autonomous prehensile suit. Gold and crimson.",
     colors: {
-      primary: "35 100% 50%", // Gold/Orange
+      primary: "35 100% 50%",
       secondary: "25 100% 45%",
       accent: "40 100% 55%",
       glow: "255 180 50",
@@ -61,7 +61,7 @@ const suits: SuitTheme[] = [
     mark: "XLV",
     description: "Age of Ultron suit. Hexagonal reactor design.",
     colors: {
-      primary: "0 85% 55%", // Red
+      primary: "0 85% 55%",
       secondary: "10 80% 45%",
       accent: "350 90% 50%",
       glow: "255 80 80",
@@ -74,7 +74,7 @@ const suits: SuitTheme[] = [
     mark: "L",
     description: "Bleeding Edge. Nanotech suit with limitless potential.",
     colors: {
-      primary: "280 100% 60%", // Purple
+      primary: "280 100% 60%",
       secondary: "290 80% 50%",
       accent: "270 100% 65%",
       glow: "180 100 255",
@@ -87,7 +87,7 @@ const suits: SuitTheme[] = [
     mark: "LXXXV",
     description: "Endgame suit. Ultimate nanotech evolution.",
     colors: {
-      primary: "160 100% 45%", // Emerald/Green
+      primary: "160 100% 45%",
       secondary: "170 90% 40%",
       accent: "150 100% 50%",
       glow: "50 255 150",
@@ -95,12 +95,51 @@ const suits: SuitTheme[] = [
     arcReactorStyle: "nano",
   },
   {
+    id: "hulkbuster",
+    name: "Hulkbuster",
+    mark: "XLIV",
+    description: "Veronica. Heavy-duty anti-Hulk modular armor.",
+    colors: {
+      primary: "15 90% 50%",
+      secondary: "8 85% 40%",
+      accent: "20 95% 55%",
+      glow: "255 100 50",
+    },
+    arcReactorStyle: "hexagonal",
+  },
+  {
+    id: "iron-spider",
+    name: "Iron Spider",
+    mark: "SP",
+    description: "Peter Parker's nanotech suit. Waldoes enabled.",
+    colors: {
+      primary: "0 80% 50%",
+      secondary: "220 90% 55%",
+      accent: "45 100% 50%",
+      glow: "255 50 50",
+    },
+    arcReactorStyle: "circular",
+  },
+  {
+    id: "rescue",
+    name: "Rescue",
+    mark: "XLIX",
+    description: "Pepper Potts' armor. Defense and rescue operations.",
+    colors: {
+      primary: "220 70% 60%",
+      secondary: "210 60% 50%",
+      accent: "45 90% 55%",
+      glow: "100 150 255",
+    },
+    arcReactorStyle: "classic",
+  },
+  {
     id: "stealth",
     name: "Stealth",
     mark: "VII",
     description: "Night operations. Minimal signature.",
     colors: {
-      primary: "220 20% 40%", // Dark gray-blue
+      primary: "220 20% 40%",
       secondary: "210 15% 30%",
       accent: "200 25% 45%",
       glow: "100 120 140",
@@ -113,7 +152,7 @@ const suits: SuitTheme[] = [
     mark: "II",
     description: "James Rhodes' heavy artillery variant.",
     colors: {
-      primary: "0 0% 50%", // Silver/Gray
+      primary: "0 0% 50%",
       secondary: "0 0% 35%",
       accent: "0 0% 60%",
       glow: "150 150 150",
