@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Mic, MicOff, Volume2, VolumeX, Trash2, LogIn, LogOut } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Trash2, LogIn, LogOut, Database } from "lucide-react";
 import { useJarvisAI } from "@/hooks/useJarvisAI";
 import { useVoice } from "@/hooks/useVoice";
 import { useLocalCommands } from "@/hooks/useLocalCommands";
 import { useAuth } from "@/hooks/useAuth";
+import { useConversation } from "@/hooks/useConversation";
 import { useNavigate } from "react-router-dom";
 
 interface CommandConsoleProps {
@@ -17,10 +18,19 @@ interface DisplayMessage {
 }
 
 const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
-  const { messages: aiMessages, isLoading, sendMessage, clearHistory } = useJarvisAI();
+  const { messages: aiMessages, isLoading, sendMessage, clearHistory, setMessages } = useJarvisAI();
   const { isListening, isSpeaking, transcript, startListening, stopListening, speak, stopSpeaking, isSupported } = useVoice();
   const { executeCommand } = useLocalCommands();
   const { user, isAuthenticated, signOut } = useAuth();
+  const { 
+    conversationId, 
+    savedMessages, 
+    conversations, 
+    createConversation, 
+    saveMessage, 
+    switchConversation, 
+    deleteConversation 
+  } = useConversation();
   const navigate = useNavigate();
   
   const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([
@@ -30,6 +40,7 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
   const [input, setInput] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastProcessedIndex = useRef(-1);
 
@@ -41,6 +52,25 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages]);
+
+  // Load saved messages when conversation changes
+  useEffect(() => {
+    if (savedMessages.length > 0 && conversationId) {
+      const restored: DisplayMessage[] = [
+        { type: 'system', content: 'MEMORY RESTORED', timestamp: new Date() },
+      ];
+      savedMessages.forEach((m) => {
+        restored.push({
+          type: m.role === 'user' ? 'user' : 'jarvis',
+          content: m.content,
+          timestamp: new Date(),
+        });
+      });
+      setDisplayMessages(restored);
+      setMessages(savedMessages);
+      lastProcessedIndex.current = savedMessages.length - 1;
+    }
+  }, [savedMessages, conversationId, setMessages]);
 
   // Handle voice transcript
   useEffect(() => {
@@ -72,9 +102,13 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
       const lastNew = newMessages[newMessages.length - 1];
       if (lastNew.type === 'jarvis' && autoSpeak && lastNew.content && !isLoading) {
         speak(lastNew.content);
+        // Save to database if authenticated
+        if (isAuthenticated && conversationId) {
+          saveMessage('assistant', lastNew.content);
+        }
       }
     }
-  }, [aiMessages, autoSpeak, speak, isLoading]);
+  }, [aiMessages, autoSpeak, speak, isLoading, isAuthenticated, conversationId, saveMessage]);
 
   // Update the last message if streaming
   useEffect(() => {
@@ -108,7 +142,6 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
     const localResult = executeCommand(command);
     
     if (localResult.handled) {
-      // Add user message and local response
       setDisplayMessages(prev => [
         ...prev,
         { type: 'user', content: command, timestamp: new Date() },
@@ -121,7 +154,17 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
       return;
     }
     
-    // Otherwise, send to AI
+    // Create conversation if authenticated and none exists
+    let activeConvId = conversationId;
+    if (isAuthenticated && !activeConvId) {
+      activeConvId = await createConversation(command.slice(0, 50));
+    }
+    
+    // Save user message
+    if (isAuthenticated && activeConvId) {
+      saveMessage('user', command);
+    }
+    
     setDisplayMessages(prev => [...prev, { type: 'user', content: command, timestamp: new Date() }]);
     lastProcessedIndex.current++;
     
@@ -136,13 +179,18 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
     }
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     clearHistory();
     lastProcessedIndex.current = -1;
     setDisplayMessages([
       { type: 'system', content: 'CONVERSATION CLEARED', timestamp: new Date() },
       { type: 'jarvis', content: 'Memory banks cleared, boss. How may I assist you?', timestamp: new Date() },
     ]);
+    
+    // Start fresh conversation if authenticated
+    if (isAuthenticated) {
+      await createConversation();
+    }
   };
 
   const handleAuthClick = async () => {
@@ -155,6 +203,26 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
     } else {
       navigate('/auth');
     }
+  };
+
+  const handleLoadConversation = async (convId: string) => {
+    await switchConversation(convId);
+    setShowHistory(false);
+  };
+
+  const handleDeleteConversation = async (convId: string) => {
+    await deleteConversation(convId);
+  };
+
+  const handleNewConversation = async () => {
+    await createConversation();
+    setDisplayMessages([
+      { type: 'system', content: 'NEW CONVERSATION INITIALIZED', timestamp: new Date() },
+      { type: 'jarvis', content: 'Fresh memory banks online, boss. What shall we discuss?', timestamp: new Date() },
+    ]);
+    clearHistory();
+    lastProcessedIndex.current = -1;
+    setShowHistory(false);
   };
 
   return (
@@ -175,6 +243,15 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
           </span>
         )}
         <div className="ml-auto flex gap-2 items-center">
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-1 rounded transition-colors ${showHistory ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+              title="View saved conversations"
+            >
+              <Database className="w-3 h-3" />
+            </button>
+          )}
           <button
             onClick={handleAuthClick}
             className={`p-1 rounded transition-colors ${isAuthenticated ? 'text-green-500' : 'text-muted-foreground hover:text-primary'}`}
@@ -212,6 +289,49 @@ const CommandConsole = ({ delay = 0 }: CommandConsoleProps) => {
           </div>
         </div>
       </div>
+
+      {/* Conversation History Dropdown */}
+      {showHistory && isAuthenticated && (
+        <div className="border-b border-border/50 p-2 bg-background/50 max-h-32 overflow-y-auto">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-[10px] text-muted-foreground uppercase font-orbitron">Memory Banks</span>
+            <button
+              onClick={handleNewConversation}
+              className="text-[10px] text-primary hover:underline"
+            >
+              + New
+            </button>
+          </div>
+          {conversations.length === 0 ? (
+            <p className="text-xs text-muted-foreground/60 italic">No saved conversations</p>
+          ) : (
+            <div className="space-y-1">
+              {conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`group flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all text-xs ${
+                    conv.id === conversationId
+                      ? "bg-primary/20 text-primary"
+                      : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  }`}
+                  onClick={() => handleLoadConversation(conv.id)}
+                >
+                  <span className="flex-1 truncate font-mono">{conv.title || "Untitled"}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteConversation(conv.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">

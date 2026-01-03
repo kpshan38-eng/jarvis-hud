@@ -118,5 +118,5 @@ export const useJarvisAI = () => {
     setMessages([]);
   }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory };
+  return { messages, isLoading, sendMessage, clearHistory, setMessages };
 };
