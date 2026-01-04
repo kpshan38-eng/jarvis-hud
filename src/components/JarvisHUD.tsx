@@ -1,16 +1,19 @@
-import { useState, useEffect } from "react";
-import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings } from "lucide-react";
 import ArcReactor from "./ArcReactor";
 import InfoPanel from "./InfoPanel";
 import StatLine from "./StatLine";
 import ProgressBar from "./ProgressBar";
 import CommandConsole from "./CommandConsole";
-import WorldMap from "./WorldMap";
+import WorldMap, { ThreatMarker } from "./WorldMap";
 import StockTicker from "./StockTicker";
 import CalendarWidget from "./CalendarWidget";
 import DiagnosticsModal from "./DiagnosticsModal";
 import WeatherPanel from "./WeatherPanel";
 import SuitSelector, { suits, SuitTheme } from "./SuitSelector";
+import SettingsPanel, { UserSettings, defaultSettings } from "./SettingsPanel";
+import ThreatNotification, { ThreatAlert } from "./ThreatNotification";
+import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 
 type DiagnosticsMode = "combat" | "stealth" | "power-save" | "diagnostics";
 
@@ -26,6 +29,12 @@ const JarvisHUD = () => {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnosticsMode, setDiagnosticsMode] = useState<DiagnosticsMode>("diagnostics");
   const [currentSuit, setCurrentSuit] = useState<SuitTheme>(suits[0]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [threatAlerts, setThreatAlerts] = useState<ThreatAlert[]>([]);
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const consoleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -58,8 +67,59 @@ const JarvisHUD = () => {
     setShowDiagnostics(true);
   };
 
+  const handleThreatChange = useCallback((threat: ThreatMarker, previousLevel: "low" | "medium" | "high") => {
+    const newAlert: ThreatAlert = {
+      id: `${threat.id}-${Date.now()}`,
+      name: threat.name,
+      type: threat.type,
+      level: threat.level,
+      timestamp: new Date(),
+    };
+    setThreatAlerts(prev => [newAlert, ...prev].slice(0, 10));
+  }, []);
+
+  const dismissAlert = (id: string) => {
+    setThreatAlerts(prev => prev.filter(a => a.id !== id));
+  };
+
+  const dismissAllAlerts = () => {
+    setThreatAlerts([]);
+  };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    toggleVoice: () => setVoiceActive(prev => !prev),
+    openDiagnostics: () => setShowDiagnostics(true),
+    toggleSettings: () => setShowSettings(prev => !prev),
+    switchMode: (mode) => {
+      setDiagnosticsMode(mode);
+      setShowDiagnostics(true);
+    },
+    focusConsole: () => {
+      const input = consoleRef.current?.querySelector('input');
+      input?.focus();
+    },
+    toggleHistory: () => setShowHistory(prev => !prev),
+  });
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 overflow-hidden relative">
+      {/* Threat Notifications */}
+      <ThreatNotification 
+        alerts={threatAlerts} 
+        onDismiss={dismissAlert} 
+        onDismissAll={dismissAllAlerts} 
+      />
+
+      {/* Settings Button */}
+      <button
+        onClick={() => setShowSettings(true)}
+        className="fixed top-4 right-4 z-40 p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+        title="Settings (Shift+S)"
+      >
+        <Settings className="w-5 h-5 text-primary" />
+      </button>
+
       {/* Scanline overlay */}
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary to-transparent animate-scanline" style={{ height: '200%' }} />
@@ -106,8 +166,8 @@ const JarvisHUD = () => {
             </div>
           </InfoPanel>
 
-          <WeatherPanel delay={400} />
-          <CalendarWidget delay={600} />
+          {settings.showWeather && <WeatherPanel delay={400} />}
+          {settings.showCalendar && <CalendarWidget delay={600} />}
         </div>
 
         {/* Center - Arc Reactor */}
@@ -149,17 +209,19 @@ const JarvisHUD = () => {
         {/* Right panels */}
         <div className="space-y-4 md:space-y-6">
           <SuitSelector currentSuit={currentSuit} onSuitChange={setCurrentSuit} delay={300} />
-          <StockTicker delay={500} />
+          {settings.showStocks && <StockTicker delay={500} />}
         </div>
       </div>
 
       {/* World Map */}
-      <div className="relative z-10 mt-6 md:mt-8">
-        <WorldMap delay={800} />
-      </div>
+      {settings.showWorldMap && (
+        <div className="relative z-10 mt-6 md:mt-8">
+          <WorldMap delay={800} onThreatChange={handleThreatChange} />
+        </div>
+      )}
 
       {/* Command Console */}
-      <div className="relative z-10 mt-6 md:mt-8 max-w-4xl mx-auto">
+      <div ref={consoleRef} className="relative z-10 mt-6 md:mt-8 max-w-4xl mx-auto">
         <CommandConsole delay={900} />
       </div>
 
@@ -170,6 +232,12 @@ const JarvisHUD = () => {
       </footer>
 
       <DiagnosticsModal isOpen={showDiagnostics} onClose={() => setShowDiagnostics(false)} mode={diagnosticsMode} />
+      <SettingsPanel 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+        settings={settings}
+        onSettingsChange={setSettings}
+      />
     </div>
   );
 };
