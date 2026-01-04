@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AlertTriangle, Shield, MapPin } from "lucide-react";
 import InfoPanel from "./InfoPanel";
 
-interface ThreatMarker {
+export interface ThreatMarker {
   id: string;
   name: string;
   lat: number;
@@ -11,7 +11,12 @@ interface ThreatMarker {
   type: string;
 }
 
-const WorldMap = ({ delay = 0 }: { delay?: number }) => {
+interface WorldMapProps {
+  delay?: number;
+  onThreatChange?: (threat: ThreatMarker, previousLevel: "low" | "medium" | "high") => void;
+}
+
+const WorldMap = ({ delay = 0, onThreatChange }: WorldMapProps) => {
   const [threats, setThreats] = useState<ThreatMarker[]>([
     { id: "1", name: "Moscow", lat: 25, lng: 68, level: "medium", type: "Cyber Activity" },
     { id: "2", name: "Seoul", lat: 30, lng: 82, level: "low", type: "Drone Surveillance" },
@@ -20,19 +25,36 @@ const WorldMap = ({ delay = 0 }: { delay?: number }) => {
   ]);
   
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
+  const previousThreatsRef = useRef<ThreatMarker[]>(threats);
 
   useEffect(() => {
     // Simulate threat level changes
     const interval = setInterval(() => {
-      setThreats(prev => prev.map(t => ({
-        ...t,
-        level: Math.random() > 0.8 
-          ? (["low", "medium", "high"] as const)[Math.floor(Math.random() * 3)]
-          : t.level
-      })));
+      setThreats(prev => {
+        const newThreats = prev.map(t => {
+          const shouldChange = Math.random() > 0.85;
+          if (!shouldChange) return t;
+          
+          const newLevel = (["low", "medium", "high"] as const)[Math.floor(Math.random() * 3)];
+          const previousThreat = previousThreatsRef.current.find(pt => pt.id === t.id);
+          
+          // Notify if level increased
+          if (previousThreat && newLevel !== previousThreat.level) {
+            const levelOrder = { low: 0, medium: 1, high: 2 };
+            if (levelOrder[newLevel] > levelOrder[previousThreat.level]) {
+              onThreatChange?.({ ...t, level: newLevel }, previousThreat.level);
+            }
+          }
+          
+          return { ...t, level: newLevel };
+        });
+        
+        previousThreatsRef.current = newThreats;
+        return newThreats;
+      });
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [onThreatChange]);
 
   const getLevelColor = (level: string) => {
     switch (level) {
