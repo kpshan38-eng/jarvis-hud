@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings } from "lucide-react";
+import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2 } from "lucide-react";
 import ArcReactor from "./ArcReactor";
 import InfoPanel from "./InfoPanel";
 import StatLine from "./StatLine";
@@ -14,6 +14,9 @@ import SuitSelector, { suits, SuitTheme } from "./SuitSelector";
 import SettingsPanel, { UserSettings, defaultSettings } from "./SettingsPanel";
 import ThreatNotification, { ThreatAlert } from "./ThreatNotification";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { useFullscreen } from "@/hooks/useFullscreen";
 
 type DiagnosticsMode = "combat" | "stealth" | "power-save" | "diagnostics";
 
@@ -30,11 +33,19 @@ const JarvisHUD = () => {
   const [diagnosticsMode, setDiagnosticsMode] = useState<DiagnosticsMode>("diagnostics");
   const [currentSuit, setCurrentSuit] = useState<SuitTheme>(suits[0]);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [threatAlerts, setThreatAlerts] = useState<ThreatAlert[]>([]);
   const [voiceActive, setVoiceActive] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const consoleRef = useRef<HTMLDivElement>(null);
+
+  // Persistent settings
+  const { settings, updateSettings, isLoading: settingsLoading } = useUserSettings();
+  
+  // Sound effects
+  const { playSound } = useSoundEffects(settings.soundEffectsEnabled ?? true);
+  
+  // Fullscreen mode
+  const { isFullscreen, toggleFullscreen } = useFullscreen();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -76,7 +87,8 @@ const JarvisHUD = () => {
       timestamp: new Date(),
     };
     setThreatAlerts(prev => [newAlert, ...prev].slice(0, 10));
-  }, []);
+    playSound("threat");
+  }, [playSound]);
 
   const dismissAlert = (id: string) => {
     setThreatAlerts(prev => prev.filter(a => a.id !== id));
@@ -88,18 +100,36 @@ const JarvisHUD = () => {
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
-    toggleVoice: () => setVoiceActive(prev => !prev),
-    openDiagnostics: () => setShowDiagnostics(true),
-    toggleSettings: () => setShowSettings(prev => !prev),
+    toggleVoice: () => {
+      setVoiceActive(prev => !prev);
+      playSound("toggle");
+    },
+    openDiagnostics: () => {
+      setShowDiagnostics(true);
+      playSound("click");
+    },
+    toggleSettings: () => {
+      setShowSettings(prev => !prev);
+      playSound("click");
+    },
     switchMode: (mode) => {
       setDiagnosticsMode(mode);
       setShowDiagnostics(true);
+      playSound("mode-switch");
     },
     focusConsole: () => {
       const input = consoleRef.current?.querySelector('input');
       input?.focus();
+      playSound("click");
     },
-    toggleHistory: () => setShowHistory(prev => !prev),
+    toggleHistory: () => {
+      setShowHistory(prev => !prev);
+      playSound("toggle");
+    },
+    toggleFullscreen: () => {
+      toggleFullscreen();
+      playSound("mode-switch");
+    },
   });
 
   return (
@@ -111,14 +141,33 @@ const JarvisHUD = () => {
         onDismissAll={dismissAllAlerts} 
       />
 
-      {/* Settings Button */}
-      <button
-        onClick={() => setShowSettings(true)}
-        className="fixed top-4 right-4 z-40 p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
-        title="Settings (Shift+S)"
-      >
-        <Settings className="w-5 h-5 text-primary" />
-      </button>
+      {/* Settings & Fullscreen Buttons */}
+      <div className="fixed top-4 right-4 z-40 flex gap-2">
+        <button
+          onClick={() => {
+            toggleFullscreen();
+            playSound("mode-switch");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}
+        >
+          {isFullscreen ? (
+            <Minimize2 className="w-5 h-5 text-primary" />
+          ) : (
+            <Maximize2 className="w-5 h-5 text-primary" />
+          )}
+        </button>
+        <button
+          onClick={() => {
+            setShowSettings(true);
+            playSound("click");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title="Settings (Shift+S)"
+        >
+          <Settings className="w-5 h-5 text-primary" />
+        </button>
+      </div>
 
       {/* Scanline overlay */}
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]">
@@ -193,7 +242,11 @@ const JarvisHUD = () => {
             {(["combat", "stealth", "power-save"] as DiagnosticsMode[]).map((mode) => (
               <button
                 key={mode}
-                onClick={() => { setDiagnosticsMode(mode); setShowDiagnostics(true); }}
+                onClick={() => {
+                  setDiagnosticsMode(mode);
+                  setShowDiagnostics(true);
+                  playSound("mode-switch");
+                }}
                 className={`px-3 py-1 text-[10px] font-mono uppercase border rounded transition-all hover:scale-105 ${
                   mode === "combat" ? "border-red-500/50 text-red-500/80 hover:bg-red-500/10"
                     : mode === "stealth" ? "border-purple-500/50 text-purple-500/80 hover:bg-purple-500/10"
@@ -236,7 +289,7 @@ const JarvisHUD = () => {
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)} 
         settings={settings}
-        onSettingsChange={setSettings}
+        onSettingsChange={updateSettings}
       />
     </div>
   );
