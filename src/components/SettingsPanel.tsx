@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Volume2, VolumeX, Layout, Palette, Keyboard, X } from "lucide-react";
+import { Settings, Volume2, VolumeX, Layout, Palette, Keyboard, X, Bell } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +27,7 @@ export interface UserSettings {
   showCalendar: boolean;
   showWorldMap: boolean;
   compactMode: boolean;
+  soundEffectsEnabled?: boolean;
 }
 
 export const defaultSettings: UserSettings = {
@@ -38,6 +39,7 @@ export const defaultSettings: UserSettings = {
   showCalendar: true,
   showWorldMap: true,
   compactMode: false,
+  soundEffectsEnabled: true,
 };
 
 const SettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }: SettingsProps) => {
@@ -49,6 +51,7 @@ const SettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }: Settings
     { key: "V", action: "Toggle Voice Input" },
     { key: "D", action: "Open Diagnostics" },
     { key: "Shift+S", action: "Open Settings" },
+    { key: "F", action: "Toggle Fullscreen" },
     { key: "1", action: "Combat Mode" },
     { key: "2", action: "Stealth Mode" },
     { key: "3", action: "Power-Save Mode" },
@@ -109,6 +112,26 @@ const SettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }: Settings
                   max={2}
                   step={0.1}
                   className="w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sound Effects Settings */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              Sound Effects
+            </h3>
+            <div className="space-y-3 pl-6">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sound-effects" className="text-xs text-muted-foreground">
+                  UI Sound Effects
+                </Label>
+                <Switch
+                  id="sound-effects"
+                  checked={settings.soundEffectsEnabled ?? true}
+                  onCheckedChange={(checked) => updateSetting("soundEffectsEnabled", checked)}
                 />
               </div>
             </div>

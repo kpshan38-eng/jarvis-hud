@@ -73,27 +73,51 @@ export type Database = {
       user_settings: {
         Row: {
           auto_speak: boolean | null
+          compact_mode: boolean | null
           created_at: string
           id: string
           selected_suit: string | null
+          show_calendar: boolean | null
+          show_stocks: boolean | null
+          show_weather: boolean | null
+          show_world_map: boolean | null
+          sound_effects_enabled: boolean | null
+          speech_rate: number | null
           updated_at: string
           user_id: string
+          voice_enabled: boolean | null
         }
         Insert: {
           auto_speak?: boolean | null
+          compact_mode?: boolean | null
           created_at?: string
           id?: string
           selected_suit?: string | null
+          show_calendar?: boolean | null
+          show_stocks?: boolean | null
+          show_weather?: boolean | null
+          show_world_map?: boolean | null
+          sound_effects_enabled?: boolean | null
+          speech_rate?: number | null
           updated_at?: string
           user_id: string
+          voice_enabled?: boolean | null
         }
         Update: {
           auto_speak?: boolean | null
+          compact_mode?: boolean | null
           created_at?: string
           id?: string
           selected_suit?: string | null
+          show_calendar?: boolean | null
+          show_stocks?: boolean | null
+          show_weather?: boolean | null
+          show_world_map?: boolean | null
+          sound_effects_enabled?: boolean | null
+          speech_rate?: number | null
           updated_at?: string
           user_id?: string
+          voice_enabled?: boolean | null
         }
         Relationships: []
       }

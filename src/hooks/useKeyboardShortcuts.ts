@@ -7,6 +7,7 @@ export interface KeyboardShortcuts {
   switchMode?: (mode: "combat" | "stealth" | "power-save") => void;
   focusConsole?: () => void;
   toggleHistory?: () => void;
+  toggleFullscreen?: () => void;
 }
 
 const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
@@ -61,6 +62,12 @@ const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
     if (key === "h" && !ctrl) {
       e.preventDefault();
       shortcuts.toggleHistory?.();
+    }
+    
+    // F - Toggle Fullscreen
+    if (key === "f" && !ctrl) {
+      e.preventDefault();
+      shortcuts.toggleFullscreen?.();
     }
     
     // Escape - Close modals (handled by individual components)
