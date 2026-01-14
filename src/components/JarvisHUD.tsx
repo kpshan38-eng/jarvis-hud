@@ -16,12 +16,13 @@ import ThreatNotification, { ThreatAlert } from "./ThreatNotification";
 import ThemeCustomizer from "./ThemeCustomizer";
 import SuitTransitionOverlay from "./SuitTransitionOverlay";
 import MinimalHUD from "./MinimalHUD";
+import VoiceCommandIndicator from "./VoiceCommandIndicator";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { useVoiceAnnouncer } from "@/hooks/useVoiceAnnouncer";
-import { useSuitTransition } from "@/hooks/useSuitTransition";
+import { useSuitTransition, TransitionStyle } from "@/hooks/useSuitTransition";
 import { useVoiceCommands } from "@/hooks/useVoiceCommands";
 
 type DiagnosticsMode = "combat" | "stealth" | "power-save" | "diagnostics";
@@ -64,19 +65,19 @@ const JarvisHUD = () => {
   });
 
   // Suit transition effects
-  const { isTransitioning, progress, phase, startTransition, fromSuit, toSuit } = useSuitTransition(1200);
+  const { isTransitioning, progress, phase, startTransition, fromSuit, toSuit, style: transitionStyle } = useSuitTransition(1200, settings.transitionStyle as TransitionStyle || "nanotech");
 
   // Handle suit change with transition
   const handleSuitChange = useCallback((newSuit: SuitTheme) => {
     if (newSuit.id !== currentSuit.id) {
-      startTransition(currentSuit, newSuit);
+      startTransition(currentSuit, newSuit, settings.transitionStyle as TransitionStyle);
       playSound("mode-switch");
       setTimeout(() => setCurrentSuit(newSuit), 600);
     }
-  }, [currentSuit, startTransition, playSound]);
+  }, [currentSuit, startTransition, playSound, settings.transitionStyle]);
 
   // Voice commands
-  const { isListening: voiceListening } = useVoiceCommands({
+  const { isListening: voiceListening, lastCommand, confidence } = useVoiceCommands({
     enabled: voiceCommandsEnabled,
     onModeChange: (mode) => handleModeSwitch(mode),
     onToggleDiagnostics: () => setShowDiagnostics(true),
@@ -208,8 +209,16 @@ const JarvisHUD = () => {
         isTransitioning={isTransitioning}
         progress={progress}
         phase={phase}
+        style={transitionStyle}
         fromGlow={fromSuit?.colors.glow}
         toGlow={toSuit?.colors.glow}
+      />
+
+      {/* Voice Command Indicator */}
+      <VoiceCommandIndicator
+        isListening={voiceListening}
+        lastCommand={lastCommand}
+        confidence={confidence}
       />
 
       {/* Minimal HUD Mode */}

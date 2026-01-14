@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Volume2, VolumeX, Layout, Palette, Keyboard, X, Bell } from "lucide-react";
+import { Settings, Volume2, VolumeX, Layout, Palette, Keyboard, X, Bell, Sparkles, Hand } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -28,6 +28,8 @@ export interface UserSettings {
   showWorldMap: boolean;
   compactMode: boolean;
   soundEffectsEnabled?: boolean;
+  transitionStyle?: "nanotech" | "holographic" | "mechanical" | "dissolve";
+  gestureControlEnabled?: boolean;
 }
 
 export const defaultSettings: UserSettings = {
@@ -40,6 +42,8 @@ export const defaultSettings: UserSettings = {
   showWorldMap: true,
   compactMode: false,
   soundEffectsEnabled: true,
+  transitionStyle: "nanotech",
+  gestureControlEnabled: false,
 };
 
 const SettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }: SettingsProps) => {
@@ -134,6 +138,39 @@ const SettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }: Settings
                   onCheckedChange={(checked) => updateSetting("soundEffectsEnabled", checked)}
                 />
               </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="gesture-control" className="text-xs text-muted-foreground">
+                  Gesture Control (Webcam)
+                </Label>
+                <Switch
+                  id="gesture-control"
+                  checked={settings.gestureControlEnabled ?? false}
+                  onCheckedChange={(checked) => updateSetting("gestureControlEnabled", checked)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Transition Style */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Suit Transition Style
+            </h3>
+            <div className="grid grid-cols-2 gap-2 pl-6">
+              {(["nanotech", "holographic", "mechanical", "dissolve"] as const).map((style) => (
+                <button
+                  key={style}
+                  onClick={() => updateSetting("transitionStyle", style)}
+                  className={`px-3 py-2 text-xs rounded border transition-all ${
+                    settings.transitionStyle === style
+                      ? "bg-primary/20 border-primary text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  {style.charAt(0).toUpperCase() + style.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
