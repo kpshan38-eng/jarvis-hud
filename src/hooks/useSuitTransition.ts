@@ -1,24 +1,28 @@
 import { useState, useCallback, useEffect } from "react";
 import { SuitTheme } from "@/components/SuitSelector";
 
+export type TransitionStyle = "nanotech" | "holographic" | "mechanical" | "dissolve";
+
 interface TransitionState {
   isTransitioning: boolean;
   progress: number;
   fromSuit: SuitTheme | null;
   toSuit: SuitTheme | null;
   phase: "idle" | "dissolve" | "morph" | "resolve";
+  style: TransitionStyle;
 }
 
-export const useSuitTransition = (duration: number = 1200) => {
+export const useSuitTransition = (duration: number = 1200, style: TransitionStyle = "nanotech") => {
   const [transitionState, setTransitionState] = useState<TransitionState>({
     isTransitioning: false,
     progress: 0,
     fromSuit: null,
     toSuit: null,
     phase: "idle",
+    style,
   });
 
-  const startTransition = useCallback((from: SuitTheme, to: SuitTheme) => {
+  const startTransition = useCallback((from: SuitTheme, to: SuitTheme, transitionStyle?: TransitionStyle) => {
     if (from.id === to.id) return;
 
     setTransitionState({
@@ -27,13 +31,13 @@ export const useSuitTransition = (duration: number = 1200) => {
       fromSuit: from,
       toSuit: to,
       phase: "dissolve",
+      style: transitionStyle || style,
     });
-  }, []);
+  }, [style]);
 
   useEffect(() => {
     if (!transitionState.isTransitioning) return;
 
-    const phaseDuration = duration / 3;
     let startTime: number;
     let animationFrame: number;
 
