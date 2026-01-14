@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2, Palette } from "lucide-react";
+import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2, Palette, Mic, MicOff } from "lucide-react";
 import ArcReactor from "./ArcReactor";
 import InfoPanel from "./InfoPanel";
 import StatLine from "./StatLine";
@@ -14,11 +14,15 @@ import SuitSelector, { suits, SuitTheme } from "./SuitSelector";
 import SettingsPanel, { UserSettings, defaultSettings } from "./SettingsPanel";
 import ThreatNotification, { ThreatAlert } from "./ThreatNotification";
 import ThemeCustomizer from "./ThemeCustomizer";
+import SuitTransitionOverlay from "./SuitTransitionOverlay";
+import MinimalHUD from "./MinimalHUD";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { useVoiceAnnouncer } from "@/hooks/useVoiceAnnouncer";
+import { useSuitTransition } from "@/hooks/useSuitTransition";
+import { useVoiceCommands } from "@/hooks/useVoiceCommands";
 
 type DiagnosticsMode = "combat" | "stealth" | "power-save" | "diagnostics";
 
@@ -40,6 +44,8 @@ const JarvisHUD = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
   const [hasAnnounced, setHasAnnounced] = useState(false);
+  const [minimalMode, setMinimalMode] = useState(false);
+  const [voiceCommandsEnabled, setVoiceCommandsEnabled] = useState(false);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   // Persistent settings
@@ -55,6 +61,32 @@ const JarvisHUD = () => {
   const { announceThreat, announceSystemStart, announceModeChange } = useVoiceAnnouncer({
     enabled: settings.voiceEnabled ?? true,
     speechRate: settings.speechRate ?? 1,
+  });
+
+  // Suit transition effects
+  const { isTransitioning, progress, phase, startTransition, fromSuit, toSuit } = useSuitTransition(1200);
+
+  // Handle suit change with transition
+  const handleSuitChange = useCallback((newSuit: SuitTheme) => {
+    if (newSuit.id !== currentSuit.id) {
+      startTransition(currentSuit, newSuit);
+      playSound("mode-switch");
+      setTimeout(() => setCurrentSuit(newSuit), 600);
+    }
+  }, [currentSuit, startTransition, playSound]);
+
+  // Voice commands
+  const { isListening: voiceListening } = useVoiceCommands({
+    enabled: voiceCommandsEnabled,
+    onModeChange: (mode) => handleModeSwitch(mode),
+    onToggleDiagnostics: () => setShowDiagnostics(true),
+    onToggleFullscreen: toggleFullscreen,
+    onToggleMinimalMode: () => setMinimalMode(prev => !prev),
+    onToggleSettings: () => setShowSettings(true),
+    onSuitChange: (suitId) => {
+      const suit = suits.find(s => s.id === suitId);
+      if (suit) handleSuitChange(suit);
+    },
   });
 
   // Announce system start once
@@ -85,14 +117,18 @@ const JarvisHUD = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Apply suit theme to CSS variables
+  // Apply suit theme to CSS variables (with transition interpolation)
   useEffect(() => {
     const root = document.documentElement;
+    if (isTransitioning && fromSuit && toSuit) {
+      // During transition, colors are applied via the transition overlay
+      return;
+    }
     root.style.setProperty('--primary', currentSuit.colors.primary);
     root.style.setProperty('--secondary', currentSuit.colors.secondary);
     root.style.setProperty('--accent', currentSuit.colors.accent);
     root.style.setProperty('--jarvis-glow', currentSuit.colors.glow);
-  }, [currentSuit]);
+  }, [currentSuit, isTransitioning, fromSuit, toSuit]);
 
   const handleArcReactorClick = () => {
     setDiagnosticsMode("diagnostics");
@@ -167,8 +203,30 @@ const JarvisHUD = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 overflow-hidden relative">
+      {/* Suit Transition Overlay */}
+      <SuitTransitionOverlay
+        isTransitioning={isTransitioning}
+        progress={progress}
+        phase={phase}
+        fromGlow={fromSuit?.colors.glow}
+        toGlow={toSuit?.colors.glow}
+      />
+
+      {/* Minimal HUD Mode */}
+      <MinimalHUD
+        isActive={minimalMode}
+        onToggle={() => setMinimalMode(false)}
+        onExitFullscreen={toggleFullscreen}
+        isFullscreen={isFullscreen}
+        currentSuit={currentSuit}
+        systemStats={systemStats}
+        isVoiceListening={voiceListening}
+        onVoiceToggle={() => setVoiceCommandsEnabled(prev => !prev)}
+        time={time}
+      />
+
       {/* Threat Notifications */}
-      <ThreatNotification 
+      <ThreatNotification
         alerts={threatAlerts} 
         onDismiss={dismissAlert} 
         onDismissAll={dismissAllAlerts} 
@@ -176,6 +234,30 @@ const JarvisHUD = () => {
 
       {/* Settings & Fullscreen Buttons */}
       <div className="fixed top-4 right-4 z-40 flex gap-2">
+        <button
+          onClick={() => {
+            setVoiceCommandsEnabled(prev => !prev);
+            playSound("toggle");
+          }}
+          className={`p-2 border rounded transition-colors ${
+            voiceCommandsEnabled 
+              ? "bg-primary/20 border-primary text-primary animate-pulse" 
+              : "bg-card/80 border-border hover:bg-card text-muted-foreground"
+          }`}
+          title={voiceCommandsEnabled ? "Voice commands active" : "Enable voice commands (say 'activate combat mode', etc.)"}
+        >
+          {voiceCommandsEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+        </button>
+        <button
+          onClick={() => {
+            setMinimalMode(true);
+            playSound("mode-switch");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title="Minimal HUD Mode (M)"
+        >
+          <Globe className="w-5 h-5 text-primary" />
+        </button>
         <button
           onClick={() => {
             setShowThemeCustomizer(true);
@@ -300,7 +382,7 @@ const JarvisHUD = () => {
 
         {/* Right panels */}
         <div className="space-y-4 md:space-y-6">
-          <SuitSelector currentSuit={currentSuit} onSuitChange={setCurrentSuit} delay={300} />
+          <SuitSelector currentSuit={currentSuit} onSuitChange={handleSuitChange} delay={300} />
           {settings.showStocks && <StockTicker delay={500} />}
         </div>
       </div>
