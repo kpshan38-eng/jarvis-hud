@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2, Palette, Mic, MicOff, Hand, GraduationCap, Box } from "lucide-react";
+import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2, Palette, Mic, MicOff, Hand, GraduationCap, Box, Monitor, User, Target } from "lucide-react";
 import ArcReactor from "./ArcReactor";
 import InfoPanel from "./InfoPanel";
 import StatLine from "./StatLine";
@@ -20,6 +20,11 @@ import VoiceCommandIndicator from "./VoiceCommandIndicator";
 import GestureControlOverlay from "./GestureControlOverlay";
 import VoiceCommandTraining from "./VoiceCommandTraining";
 import HolographicSuitPreview from "./HolographicSuitPreview";
+import FaceAROverlay from "./FaceAROverlay";
+import MultiMonitorManager from "./MultiMonitorManager";
+import PersonalityCustomizer, { JarvisPersonality, defaultPersonality } from "./PersonalityCustomizer";
+import MissionBriefing, { Mission } from "./MissionBriefing";
+import MissionOverlay from "./MissionOverlay";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -55,6 +60,13 @@ const JarvisHUD = () => {
   const [showVoiceTraining, setShowVoiceTraining] = useState(false);
   const [showSuitPreview, setShowSuitPreview] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [faceAREnabled, setFaceAREnabled] = useState(false);
+  const [showMultiMonitor, setShowMultiMonitor] = useState(false);
+  const [showPersonality, setShowPersonality] = useState(false);
+  const [personality, setPersonality] = useState<JarvisPersonality>(defaultPersonality);
+  const [showMissionBriefing, setShowMissionBriefing] = useState(false);
+  const [activeMission, setActiveMission] = useState<Mission | null>(null);
+  const [missionTimeRemaining, setMissionTimeRemaining] = useState(0);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   // Persistent settings
@@ -142,6 +154,23 @@ const JarvisHUD = () => {
       return () => clearTimeout(timer);
     }
   }, [hasAnnounced, settings.voiceEnabled, announceSystemStart]);
+
+  // Mission countdown timer
+  useEffect(() => {
+    if (!activeMission || !activeMission.timeLimit) return;
+
+    const interval = setInterval(() => {
+      setMissionTimeRemaining(prev => {
+        if (prev <= 0) {
+          setActiveMission(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeMission]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -288,6 +317,45 @@ const JarvisHUD = () => {
         suit={currentSuit}
       />
 
+      {/* Face AR Overlay */}
+      <FaceAROverlay
+        enabled={faceAREnabled}
+        suit={currentSuit}
+        systemStats={systemStats}
+      />
+
+      {/* Multi-Monitor Manager */}
+      <MultiMonitorManager
+        isOpen={showMultiMonitor}
+        onClose={() => setShowMultiMonitor(false)}
+      />
+
+      {/* Personality Customizer */}
+      <PersonalityCustomizer
+        isOpen={showPersonality}
+        onClose={() => setShowPersonality(false)}
+        personality={personality}
+        onPersonalityChange={setPersonality}
+      />
+
+      {/* Mission Briefing */}
+      <MissionBriefing
+        isOpen={showMissionBriefing}
+        onClose={() => setShowMissionBriefing(false)}
+        onMissionStart={(mission) => {
+          setActiveMission(mission);
+          setMissionTimeRemaining(mission.timeLimit || 0);
+          setShowMissionBriefing(false);
+          playSound("mode-switch");
+        }}
+      />
+
+      {/* Mission Overlay */}
+      <MissionOverlay
+        mission={activeMission}
+        timeRemaining={missionTimeRemaining}
+      />
+
       {/* Minimal HUD Mode */}
       <MinimalHUD
         isActive={minimalMode}
@@ -367,6 +435,54 @@ const JarvisHUD = () => {
           title="3D Suit Preview"
         >
           <Box className="w-5 h-5 text-primary" />
+        </button>
+        <button
+          onClick={() => {
+            setFaceAREnabled(prev => !prev);
+            playSound("toggle");
+          }}
+          className={`p-2 border rounded transition-colors ${
+            faceAREnabled
+              ? "bg-primary/20 border-primary text-primary"
+              : "bg-card/80 border-border hover:bg-card text-muted-foreground"
+          }`}
+          title={faceAREnabled ? "Face AR Active" : "Enable Face AR"}
+        >
+          <User className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => {
+            setShowMultiMonitor(true);
+            playSound("click");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title="Multi-Monitor Layout"
+        >
+          <Monitor className="w-5 h-5 text-primary" />
+        </button>
+        <button
+          onClick={() => {
+            setShowPersonality(true);
+            playSound("click");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title="AI Personality"
+        >
+          <Brain className="w-5 h-5 text-primary" />
+        </button>
+        <button
+          onClick={() => {
+            setShowMissionBriefing(true);
+            playSound("click");
+          }}
+          className={`p-2 border rounded transition-colors ${
+            activeMission
+              ? "bg-primary/20 border-primary text-primary animate-pulse"
+              : "bg-card/80 border-border hover:bg-card"
+          }`}
+          title={activeMission ? `Mission: ${activeMission.codename}` : "Mission Briefing"}
+        >
+          <Target className="w-5 h-5 text-primary" />
         </button>
         <button
           onClick={() => {
