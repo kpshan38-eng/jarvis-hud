@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2, Palette, Mic, MicOff } from "lucide-react";
+import { Cpu, Wifi, Brain, Battery, HardDrive, Activity, Globe, Shield, Zap, Clock, MapPin, Settings, Maximize2, Minimize2, Palette, Mic, MicOff, Hand, GraduationCap, Box } from "lucide-react";
 import ArcReactor from "./ArcReactor";
 import InfoPanel from "./InfoPanel";
 import StatLine from "./StatLine";
@@ -17,6 +17,9 @@ import ThemeCustomizer from "./ThemeCustomizer";
 import SuitTransitionOverlay from "./SuitTransitionOverlay";
 import MinimalHUD from "./MinimalHUD";
 import VoiceCommandIndicator from "./VoiceCommandIndicator";
+import GestureControlOverlay from "./GestureControlOverlay";
+import VoiceCommandTraining from "./VoiceCommandTraining";
+import HolographicSuitPreview from "./HolographicSuitPreview";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -24,6 +27,7 @@ import { useFullscreen } from "@/hooks/useFullscreen";
 import { useVoiceAnnouncer } from "@/hooks/useVoiceAnnouncer";
 import { useSuitTransition, TransitionStyle } from "@/hooks/useSuitTransition";
 import { useVoiceCommands } from "@/hooks/useVoiceCommands";
+import { useGestureControl } from "@/hooks/useGestureControl";
 
 type DiagnosticsMode = "combat" | "stealth" | "power-save" | "diagnostics";
 
@@ -47,6 +51,10 @@ const JarvisHUD = () => {
   const [hasAnnounced, setHasAnnounced] = useState(false);
   const [minimalMode, setMinimalMode] = useState(false);
   const [voiceCommandsEnabled, setVoiceCommandsEnabled] = useState(false);
+  const [gestureControlEnabled, setGestureControlEnabled] = useState(false);
+  const [showVoiceTraining, setShowVoiceTraining] = useState(false);
+  const [showSuitPreview, setShowSuitPreview] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   // Persistent settings
@@ -88,6 +96,40 @@ const JarvisHUD = () => {
       const suit = suits.find(s => s.id === suitId);
       if (suit) handleSuitChange(suit);
     },
+  });
+
+  // Navigate suits for gesture control
+  const navigateSuitPrevious = useCallback(() => {
+    const currentIndex = suits.findIndex(s => s.id === currentSuit.id);
+    const newIndex = currentIndex === 0 ? suits.length - 1 : currentIndex - 1;
+    handleSuitChange(suits[newIndex]);
+    playSound("click");
+  }, [currentSuit, handleSuitChange, playSound]);
+
+  const navigateSuitNext = useCallback(() => {
+    const currentIndex = suits.findIndex(s => s.id === currentSuit.id);
+    const newIndex = currentIndex === suits.length - 1 ? 0 : currentIndex + 1;
+    handleSuitChange(suits[newIndex]);
+    playSound("click");
+  }, [currentSuit, handleSuitChange, playSound]);
+
+  // Gesture controls
+  const { 
+    isActive: gestureActive, 
+    gesture, 
+    handPosition, 
+    isLoading: gestureLoading, 
+    error: gestureError 
+  } = useGestureControl({
+    enabled: gestureControlEnabled,
+    onSwipeLeft: navigateSuitPrevious,
+    onSwipeRight: navigateSuitNext,
+    onSwipeUp: () => setMinimalMode(false),
+    onSwipeDown: () => setMinimalMode(true),
+    onPinch: () => setZoomLevel(prev => Math.max(0.5, prev - 0.1)),
+    onSpread: () => setZoomLevel(prev => Math.min(2, prev + 0.1)),
+    onFist: () => handleModeSwitch("combat"),
+    onOpenPalm: () => handleModeSwitch("stealth"),
   });
 
   // Announce system start once
@@ -221,6 +263,31 @@ const JarvisHUD = () => {
         confidence={confidence}
       />
 
+      {/* Gesture Control Overlay */}
+      {gestureControlEnabled && (
+        <GestureControlOverlay
+          isActive={gestureActive}
+          gesture={gesture}
+          handPosition={handPosition}
+          isLoading={gestureLoading}
+          error={gestureError}
+        />
+      )}
+
+      {/* Voice Command Training */}
+      <VoiceCommandTraining
+        isOpen={showVoiceTraining}
+        onClose={() => setShowVoiceTraining(false)}
+        onComplete={() => playSound("mode-switch")}
+      />
+
+      {/* Holographic Suit Preview */}
+      <HolographicSuitPreview
+        isOpen={showSuitPreview}
+        onClose={() => setShowSuitPreview(false)}
+        suit={currentSuit}
+      />
+
       {/* Minimal HUD Mode */}
       <MinimalHUD
         isActive={minimalMode}
@@ -266,6 +333,40 @@ const JarvisHUD = () => {
           title="Minimal HUD Mode (M)"
         >
           <Globe className="w-5 h-5 text-primary" />
+        </button>
+        <button
+          onClick={() => {
+            setGestureControlEnabled(prev => !prev);
+            playSound("toggle");
+          }}
+          className={`p-2 border rounded transition-colors ${
+            gestureControlEnabled
+              ? "bg-primary/20 border-primary text-primary"
+              : "bg-card/80 border-border hover:bg-card text-muted-foreground"
+          }`}
+          title={gestureControlEnabled ? "Gesture control active" : "Enable gesture controls"}
+        >
+          <Hand className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => {
+            setShowVoiceTraining(true);
+            playSound("click");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title="Voice Command Training"
+        >
+          <GraduationCap className="w-5 h-5 text-primary" />
+        </button>
+        <button
+          onClick={() => {
+            setShowSuitPreview(true);
+            playSound("click");
+          }}
+          className="p-2 bg-card/80 border border-border rounded hover:bg-card transition-colors"
+          title="3D Suit Preview"
+        >
+          <Box className="w-5 h-5 text-primary" />
         </button>
         <button
           onClick={() => {
